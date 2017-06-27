@@ -70,7 +70,7 @@ void createfile(string path,string message){
 }
 void appendfile(string path,string message){
 	ofstream newfile(path.c_str(),fstream::app);
-	newfile<<message<<endl;
+	if(message.size()>0) newfile<<message<<endl;
 	newfile.close();
 }
 vector<string> split(string s){
@@ -239,6 +239,7 @@ void showMsg(string username,string option){
 			}
 }
 int main(){
+	appendfile("users.txt","");
 	cout<<"1.Login\n2.Register\n";
 	int choice;
 	cin>>choice;
