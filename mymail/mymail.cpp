@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include<direct.h>  
+#include<stdlib.h>
+#include<conio.h>
 #include<string>
 #include<sstream>
 #include<vector>
@@ -16,9 +18,45 @@ string gettime(){
 	time_t t = time(0);   
     struct tm * now = localtime( & t );
     string s="";
-    s+=to_string(now->tm_year + 1900) +'-' +to_string(now->tm_mon + 1)+ '-'+to_string(now->tm_mday)+'_'+to_string(now->tm_hour)+':'+to_string(now->tm_min)+':'+to_string(now->tm_sec);
+    s+=to_string(now->tm_mday)+'/'+to_string(now->tm_mon + 1)+'/'+to_string(now->tm_year + 1900) + '_'+to_string(now->tm_hour)+':'+to_string(now->tm_min)+':'+to_string(now->tm_sec);
     return s;
 }
+string getpass(const char *prompt, bool show_asterisk=true)
+{
+  const char BACKSPACE=8;
+  const char RETURN=13;
+  string password;
+  unsigned char ch=0;
+
+  cout <<prompt<<endl;
+
+  while((ch=getch())!=RETURN)
+    {
+       if(ch==BACKSPACE)
+         {
+            if(password.length()!=0)
+              {
+                 if(show_asterisk)
+                 cout <<"\b \b";
+                 password.resize(password.length()-1);
+              }
+         }
+       else if(ch==0 || ch==224) // handle escape sequences
+         {
+             getch(); // ignore non printable chars
+             continue;
+         }
+       else
+         {
+             password+=ch;
+             if(show_asterisk)
+                 cout <<'*';
+         }
+    }
+  cout <<endl;
+  return password;
+}
+
 string removetokens(string s){
 	string ss="";
 	int n=s.size();
@@ -27,7 +65,7 @@ string removetokens(string s){
 }
 void createfile(string path,string message){
 	ofstream newfile(path.c_str(),fstream::out);
-	newfile<<message<<endl;
+	if(message.size()>0) newfile<<message<<endl;
 	newfile.close();
 }
 void appendfile(string path,string message){
@@ -59,8 +97,7 @@ bool checkUser(string newname,string option){
 		}
 	}
 	checkfile.close();
-	return false;
-	
+	return false;	
 }
 
 bool registerUser(string name,string password){
@@ -70,19 +107,18 @@ bool registerUser(string name,string password){
 	mkdir(inboxname.c_str());
 	mkdir(sentname.c_str());
 	appendfile("users.txt",name+" "+password);
-	createfile(name+"//inbox//inbox.txt","welcome "+gettime());
-	createfile(name+"//sent//sent.txt","Hello World "+gettime());
+	createfile(name+"//inbox//inbox.txt","");
+	createfile(name+"//sent//sent.txt","");
 	return true;
 }
 bool Register(){
 string username,password;
 cout<<"Enter username:";
 cin>>username;
-cout<<"Enter Password:";
-cin>>password;
+password=getpass("Enter Password:",true);
 return registerUser(username,password);
 }
-void showDetails(string path,int opt){
+int showDetails(string path,int opt){
 	fstream details(path.c_str());
 	string msg;
 	int count=1;
@@ -92,8 +128,10 @@ void showDetails(string path,int opt){
 		if(opt) cout<<"|\t"<<count++<<" "<<msg<<"\t|"<<endl;
 		else cout<<msg<<endl;
 	}
+	if(opt&&count==1) cout<<"|\tNo messages to View\t|\n";
 	for(int i=0;i<80;i++) cout<<"-";
 	cout<<endl;
+	return count-1;
 }
 vector<string> showmsg(string path,int n){
 	fstream details(path.c_str());
@@ -133,6 +171,7 @@ string getinputmessage(){
 		return to_string(msg);
 }
 void getMailDetails(string username){
+	system("cls");
 	cout<<"Enter recipient:";
 	string recipient;
 	cin>>recipient;
@@ -141,36 +180,69 @@ void getMailDetails(string username){
 		cout<<"\nYour Message has been Successfully Sent!!\n";
 		}
 }
+void forwardMail(string username,string message){
+	system("cls");
+	cout<<"Enter recipient:";
+	string recipient;
+	cin>>recipient;
+	if(checkUser(recipient,"checkuser")){		
+		sendMail(username,recipient,message);
+		cout<<"\nYour Message has been Successfully Forwarded!!\n";
+		}
+}
+string getMessageContent(string path){
+	fstream fc(path.c_str());
+	string content="",temp;
+	while(getline(fc,temp)) content+=temp+"\n";
+	fc.close();
+	return content;
+}
 void showMsg(string username,string option){
-	showDetails(username+"//"+option+"//"+option+".txt",1);
+
 				while(1){
+				system("cls");
+				cout<<username<<"/"<<option<<endl;
+				int tot=showDetails(username+"//"+option+"//"+option+".txt",1);
 				int msgno;
-				cout<<"Press 0 to Exit\nEnter the Message No to view Message:";
+				cout<<"Press 0 to Go Home\nEnter the Message No to view Message:";
 				cin>>msgno;
-				if(msgno==0) break;
+				if(msgno==0){
+				system("cls"); break;
+				}else if(msgno>tot){
+					cout<<"Invalid Input\n try Valid input";
+					continue;
+				}
 				while(1){
-					string sender=username,receiver;
+					string sender=username,receiver,timenow;
 					vector<string> details=showmsg(username+"//"+option+"//"+option+".txt",msgno);
 					receiver=details[0];
-					showDetails(username+"//"+option+"//"+receiver+removetokens(details[1])+".txt",0);
+					timenow=removetokens(details[1]);
+					system("cls");
+					if(option.compare("inbox")==0) cout<<"Message from ";
+					else cout<<"Mailed to ";
+					cout<<receiver<<" on "<<details[1]<<endl;					
+					showDetails(username+"//"+option+"//"+receiver+timenow+".txt",0);
 					int choice;
-					cout<<"1.Reply\n2.forward\n3.Delete\n4.Exit\n";
+					cout<<"1.Reply\n2.forward\n3.Delete\n4.Back\n";
 					cin>>choice;
 					if(choice==1){
 						sendMail(sender,receiver,getinputmessage()); break;
 					}else if(choice==2){
-						getMailDetails(sender); break;
+						forwardMail(sender,getMessageContent(username+"//"+option+"//"+receiver+timenow+".txt")); break;
 					}else if(choice==3){
-						
+						remove((username+"//"+option+"//"+receiver+timenow+".txt").c_str());
+						removeline(username+"//"+option+"//"+option+".txt",details[1]);
+						cout<<"Message Deleted\n";
+						break;
 					}else break;
 				}
-				showDetails(username+"//"+option+"//"+option+".txt",1);
 			}
 }
 int main(){
 	cout<<"1.Login\n2.Register\n";
 	int choice;
 	cin>>choice;
+	system("cls");
 	if(choice-1){                 
 		  while(1){
 		  	if(Register()){
@@ -184,12 +256,12 @@ int main(){
 		string username,password;
 		cout<<"Enter username:";
 		cin>>username;
-		cout<<"Enter Password:";
-		cin>>password;
+		password=getpass("Enter Password:",true);
 		if(checkUser(username,password)){
 			cout<<"Login Success";
+			system("cls");
 			while(1){
-			cout<<endl<<"1.Inbox\n2.Sent Mail\n3.Compose\n4.Exit";
+			cout<<endl<<"Welcome "<<username<<"\n1.Inbox\n2.Sent Mail\n3.Compose\n4.Logout";
 			cin>>choice;
 			if(choice==1){
 				showMsg(username,"inbox");
