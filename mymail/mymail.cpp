@@ -6,7 +6,8 @@
 #include<vector>
 #include<ctime>
 using namespace std;
-string to_string(int i){
+template<class T>
+string to_string(T i){
 	stringstream ss;
 	ss<<i;
 	return ss.str();
@@ -81,26 +82,26 @@ cout<<"Enter Password:";
 cin>>password;
 return registerUser(username,password);
 }
-void showDetails(string path){
+void showDetails(string path,int opt){
 	fstream details(path.c_str());
 	string msg;
 	int count=1;
-	for(int i=0;i<50;i++) cout<<"-";
+	for(int i=0;i<80;i++) cout<<"-";
 	cout<<endl;
 	while(getline(details,msg)){
-		cout<<"|\t"<<count++<<" "<<msg<<"\t|"<<endl;
+		if(opt) cout<<"|\t"<<count++<<" "<<msg<<"\t|"<<endl;
+		else cout<<msg<<endl;
 	}
-	for(int i=0;i<50;i++) cout<<"-";
+	for(int i=0;i<80;i++) cout<<"-";
 	cout<<endl;
 }
-string showmsg(string path,int n){
+vector<string> showmsg(string path,int n){
 	fstream details(path.c_str());
 	string msg;
 	int count=1;
 	while(getline(details,msg)){
 		if(count==n){
-			vector<string> msgfile=split(msg);
-			return msgfile[0]+removetokens(msgfile[1]);
+			return split(msg);
 		}count++;
 	}
 }
@@ -111,11 +112,11 @@ void removeline(string path,string time){
 	 while(getline(ss,line)){
 	 	if(line.find(time.c_str())<line.length()) continue;
 		 else temp<<line<<endl; 
-}
-temp.close();
-ss.close();
-remove(path.c_str());
-rename("temp.txt",path.c_str());
+	}
+	temp.close();
+	ss.close();
+	remove(path.c_str());
+	rename("temp.txt",path.c_str());
 }
 void sendMail(string sender,string receiver,string message){
 	string time=gettime();
@@ -124,27 +125,46 @@ void sendMail(string sender,string receiver,string message){
 	createfile(sender+"//sent//"+receiver+removetokens(time)+".txt",message);
 	createfile(receiver+"//inbox//"+sender+removetokens(time)+".txt",message);
 }
+string getinputmessage(){
+	cout<<"Enter Message:";
+		cin.ignore(1,'\n');
+		char * msg=new char[100000];
+		scanf("%[^\t]s",msg);
+		return to_string(msg);
+}
 void getMailDetails(string username){
 	cout<<"Enter recipient:";
 	string recipient;
 	cin>>recipient;
-	if(checkUser(recipient,"checkuser")){
-		string message;
-		cout<<"Enter Message";
-		cin.ignore(1,'\n');
-		getline(cin,message);
-		sendMail(username,recipient,message);
+	if(checkUser(recipient,"checkuser")){		
+		sendMail(username,recipient,getinputmessage());
 		cout<<"\nYour Message has been Successfully Sent!!\n";
 		}
 }
 void showMsg(string username,string option){
-	showDetails(username+"//"+option+"//"+option+".txt");
+	showDetails(username+"//"+option+"//"+option+".txt",1);
 				while(1){
 				int msgno;
 				cout<<"Press 0 to Exit\nEnter the Message No to view Message:";
 				cin>>msgno;
 				if(msgno==0) break;
-				showDetails(username+"//"+option+"//"+showmsg(username+"//"+option+"//"+option+".txt",msgno)+".txt");
+				while(1){
+					string sender=username,receiver;
+					vector<string> details=showmsg(username+"//"+option+"//"+option+".txt",msgno);
+					receiver=details[0];
+					showDetails(username+"//"+option+"//"+receiver+removetokens(details[1])+".txt",0);
+					int choice;
+					cout<<"1.Reply\n2.forward\n3.Delete\n4.Exit\n";
+					cin>>choice;
+					if(choice==1){
+						sendMail(sender,receiver,getinputmessage()); break;
+					}else if(choice==2){
+						getMailDetails(sender); break;
+					}else if(choice==3){
+						
+					}else break;
+				}
+				showDetails(username+"//"+option+"//"+option+".txt",1);
 			}
 }
 int main(){
